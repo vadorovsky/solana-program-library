@@ -1,0 +1,49 @@
+name: Upload Release Binaries
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+env:
+  LIGHT_ANCHOR_VERSION: 0.27.1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - uses: Swatinem/rust-cache@v1
+
+      - name: Install light-anchor
+        uses: supplypike/setup-bin@v3
+        with:
+          uri: "https://github.com/Lightprotocol/anchor/releases/download/v${{ env.LIGHT_ANCHOR_VERSION }}/light-anchor-linux-amd64"
+          name: "cross"
+          version: "${{ env.LIGHT_ANCHOR_VERSION }}"
+
+      - name: Build
+        working-directory: ./account-compression
+        run: |
+          light-anchor build
+          cp target/deploy/spl_noop.so ../spl_noop.so
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          files: |
+            spl_noop.so
